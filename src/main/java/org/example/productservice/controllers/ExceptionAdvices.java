@@ -19,7 +19,7 @@ public class ExceptionAdvices {
 
     }
 
-    @ExceptionHandler(Exception.class)
+    @ExceptionHandler({RuntimeException.class, Exception.class})
     public ResponseEntity<ErrorResponseDto> handleGenericException(Exception exception) {
         ErrorResponseDto errorResponseDto = new ErrorResponseDto();
         errorResponseDto.setMessage("An unexpected error occurred: " + exception.getMessage());
