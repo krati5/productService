@@ -71,7 +71,7 @@ public class ProductController {
     }
 
     @PostMapping("")
-    private ResponseEntity<ProductResponseDto> addProduct(@RequestBody ProductDto productDto) throws NotFoundException {
+    private ResponseEntity<ProductResponseDto> addProduct(@RequestBody ProductDto productDto) throws Exception {
 
         try {
             Product product =  productDto.toProduct();
@@ -139,6 +139,8 @@ public class ProductController {
             logger.error("Error occured while deleting product :{}.", e.getMessage(), e);
             throw e;
         }
+
+
     }
 
 

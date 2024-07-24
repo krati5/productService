@@ -1,5 +1,6 @@
 package org.example.productservice.controllers;
 
+import org.example.productservice.dtos.CategoryDto;
 import org.example.productservice.dtos.ProductResponseDto;
 import org.example.productservice.exceptions.NotFoundException;
 import org.example.productservice.models.Category;
@@ -23,12 +24,13 @@ public class CategoryController {
     private static final Logger logger = LoggerFactory.getLogger(CategoryController.class);
     ICategoryService categoryService;
 
+
     public CategoryController(ICategoryService categoryService){
         this.categoryService = categoryService;
     }
 
     @GetMapping("")
-    public ResponseEntity<List<Category>> getAllCategories() throws NotFoundException {
+    public ResponseEntity<List<CategoryDto>> getAllCategories() throws NotFoundException {
 
         try {
             List<Category> categoryList = categoryService.getAllCategories();
@@ -38,8 +40,10 @@ public class CategoryController {
             }
 
             logger.info("All categories: {}", categoryList);
-
-            return new ResponseEntity<>(categoryList,
+            List<CategoryDto> categoryDtoList = categoryList.stream()
+                    .map(CategoryDto::fromCategory)
+                    .collect(Collectors.toList());
+            return new ResponseEntity<>(categoryDtoList,
                     HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Error occured while adding category :{}.", e.getMessage(), e);
@@ -59,99 +63,15 @@ public class CategoryController {
     }
 
     @PostMapping
-    public ResponseEntity<Category> addCategory(@RequestBody Category category) {
+    public ResponseEntity<CategoryDto> addCategory(@RequestBody Category category) {
         try {
             Category createdCategory = categoryService.addCategory(category);
-            return new ResponseEntity<>(createdCategory, HttpStatus.CREATED);
+            return new ResponseEntity<>(CategoryDto.fromCategory(createdCategory), HttpStatus.CREATED);
         } catch (Exception e) {
             logger.error("Error occured while getting products in category :{}.", e.getMessage(), e);
             throw e;
         }
     }
-
-
-//
-//
-//    @GetMapping("")
-//    private ResponseEntity<List<Category>> getAllCategories() throws NotFoundException {
-//        List<Product> categoryList = categoryService.getAllCategories();
-//
-//        if(categoryList.isEmpty()){
-//            throw new NotFoundException("No products found.");
-//        }
-//        ResponseEntity<List<Product>> response = new ResponseEntity<>(categoryList,
-//                HttpStatus.OK);
-//        return response;
-//    }
-//
-//    @GetMapping("/{categoryId}")
-//    private ResponseEntity<Category> getCategory(@PathVariable("categoryId") Long categoryId) throws NotFoundException{
-//
-//
-//        Optional<Category> category = categoryService.getCategory(categoryId);
-//        if(category.isEmpty()){
-//            logger.error("Category with id {} not found.", categoryId);
-//            throw new NotFoundException("Category with id "+ categoryId+" not found.");
-//        }
-//        ResponseEntity<Category> response = new ResponseEntity<>(
-//                category.get(),
-//                HttpStatus.OK);
-//
-//        return response;
-//
-//    }
-//
-//    @PostMapping("")
-//    private ResponseEntity<Category> addCategory(@RequestBody ProductDto productDto) throws NotFoundException {
-//        Category category =  productDto.toProduct();
-//
-//        try {
-//            Category addedCategory = categoryService.addCategory(category);
-//            logger.info("Added new category: {}", addedCategory);
-//            return new ResponseEntity<>(addedCategory, HttpStatus.CREATED);
-//        } catch (Exception e) {
-//            logger.error("Error occured while adding category :{}.", e.getMessage(), e);
-//            throw e;
-//        }
-//    }
-//
-//    @PatchMapping("/{categoryId}")
-//    public ResponseEntity<Category> updateCategory(@PathVariable("categoryId") Long categoryId,
-//                                                 @RequestBody ProductDto productDto) throws NotFoundException {
-//        Category category = productDto.toProduct();
-//
-//        try {
-//            Category savedCategory = categoryService.updateCategory(categoryId, category);
-//            return new ResponseEntity<>(savedCategory, HttpStatus.OK);
-//        } catch (NotFoundException e) {
-//            logger.error("Category with id {} not found.", categoryId);
-//            throw e;
-//        } catch (Exception e) {
-//            logger.error("Error occured while updating category :{}.", e.getMessage(), e);
-//            throw e;
-//        }
-//
-//    }
-//
-//
-//    @DeleteMapping("/{categoryId}")
-//    private ResponseEntity<Category> deleteCategory(@PathVariable("categoryId") Long categoryId) throws NotFoundException {
-//        try {
-//            Category deletedCategory = categoryService.deleteCategory(categoryId);
-//            return new ResponseEntity<>(deletedCategory, HttpStatus.OK);
-//        } catch (NotFoundException e) {
-//            logger.error("Category with id {} not found.", categoryId);
-//            throw e;
-//        } catch (Exception e) {
-//            logger.error("Error occured while deleting category :{}.", e.getMessage(), e);
-//            throw e;
-//        }
-//    }
-//
-//    @GetMapping("/{categoryId}")
-//    private String getProductsInCategory(@PathVariable("categoryId") Long categoryId){
-//        return "Get products in a specific category";
-//    }
 
 
 }

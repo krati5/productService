@@ -5,6 +5,7 @@ import jakarta.persistence.OneToMany;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -15,5 +16,5 @@ public class Category extends BaseModel  {
     private String description;
 
     @OneToMany(mappedBy = "category")
-    private List<Product> products;
+    private List<Product> products  = new ArrayList<>();
 }

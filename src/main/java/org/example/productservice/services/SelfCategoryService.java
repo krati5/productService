@@ -42,33 +42,4 @@ public class SelfCategoryService implements ICategoryService{
         return categoryRepository.save(category);
     }
 
-//    @Override
-//    public List<Category> getAllCategories() {
-//        return null;
-//    }
-//
-//    @Override
-//    public Optional<Category> getCategory(Long categoryId) {
-//        return Optional.empty();
-//    }
-//
-//    @Override
-//    public Category addCategory(Category category) {
-//        return null;
-//    }
-//
-//    @Override
-//    public Category updateCategory(Long categoryId, Category category) {
-//        return null;
-//    }
-//
-//    @Override
-//    public Category deleteCategory(Long categoryId) {
-//        return null;
-//    }
-//
-//    @Override
-//    public List<Product> getProductsInCategory(Long categoryId) {
-//        return null;
-//    }
 }
