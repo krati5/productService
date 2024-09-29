@@ -1,5 +1,12 @@
 package org.example.productservice.controllers;
 
+import io.micrometer.common.lang.Nullable;
+import jakarta.websocket.server.PathParam;
+import org.example.productservice.clients.authenticationclient.AuthenticationClient;
+import org.example.productservice.clients.authenticationclient.dtos.Role;
+import org.example.productservice.clients.authenticationclient.dtos.SessionStatus;
+import org.example.productservice.clients.authenticationclient.dtos.ValidateTokenResponseDto;
+import org.example.productservice.dtos.GetProductsRequestDto;
 import org.example.productservice.dtos.ProductDto;
 import org.example.productservice.dtos.ProductResponseDto;
 import org.slf4j.Logger;
@@ -7,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.example.productservice.exceptions.NotFoundException;
 import org.example.productservice.models.Product;
 import org.example.productservice.services.IProductService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,15 +27,29 @@ import java.util.stream.Collectors;
 @RequestMapping("/products")
 public class ProductController {
     private static final Logger logger = LoggerFactory.getLogger(ProductController.class);
-    IProductService productService;
+    private IProductService productService;
+    private AuthenticationClient authenticationClient;
 
-    public ProductController(IProductService productService){
+    public ProductController(IProductService productService, AuthenticationClient authenticationClient){
         this.productService = productService;
+        this.authenticationClient = authenticationClient;
     }
 
+    @PostMapping("/paginated")
+    public ResponseEntity<Page<ProductResponseDto>> getProducts(@RequestBody GetProductsRequestDto requestDto){
+        Page<Product> productPage = productService.getProducts(
+                                                        requestDto.getNumOfResults(),
+                                                            requestDto.getOffset(),
+                                                        requestDto.getSortParamsList());
+        Page<ProductResponseDto> productResponseDtos = productPage.map(ProductResponseDto::fromProduct);
+
+        return new ResponseEntity<>(productResponseDtos,
+                HttpStatus.OK);
+    }
     @GetMapping("")
-    private ResponseEntity<List<ProductResponseDto>> getAllProducts() throws NotFoundException {
+    public ResponseEntity<List<ProductResponseDto>> getAllProducts(@Nullable @RequestHeader("AUTH_TOKEN") String token, @Nullable @RequestHeader("USER_ID") Long userId) throws NotFoundException {
         try {
+            // Fetch the products
             List<Product> productList = productService.getAllProducts();
 
             if(productList.isEmpty()){
@@ -48,7 +70,7 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}")
-    private ResponseEntity<ProductResponseDto> getSingleProduct(@PathVariable("productId") Long productId) throws NotFoundException{
+    public ResponseEntity<ProductResponseDto> getSingleProduct(@PathVariable("productId") Long productId) throws NotFoundException{
 
         try {
             Optional<Product> productOptional = productService.getSingleProduct(productId);
@@ -71,7 +93,7 @@ public class ProductController {
     }
 
     @PostMapping("")
-    private ResponseEntity<ProductResponseDto> addProduct(@RequestBody ProductDto productDto) throws Exception {
+    public ResponseEntity<ProductResponseDto> addProduct(@RequestBody ProductDto productDto) throws Exception {
 
         try {
             Product product =  productDto.toProduct();
@@ -126,7 +148,7 @@ public class ProductController {
 
 
     @DeleteMapping("/{productId}")
-    private ResponseEntity<ProductResponseDto> deleteProduct(@PathVariable("productId") Long productId) throws NotFoundException {
+    public ResponseEntity<ProductResponseDto> deleteProduct(@PathVariable("productId") Long productId) throws NotFoundException {
         try {
             Product deletedProduct = productService.deleteProduct(productId);
             logger.info("Deleted product: {}", deletedProduct);
@@ -141,6 +163,11 @@ public class ProductController {
         }
 
 
+    }
+
+    @GetMapping("/search/{keyword}")
+    public Iterable<Product> searchProducts(@PathVariable String keyword) {
+        return productService.searchProducts(keyword);
     }
 
 

@@ -17,6 +17,7 @@ public class ProductDto {
     private String description;
     private String image;
     private String category;
+    private Integer stockQuantity;
 
     public Product toProduct(){
         Product product = new Product();
@@ -27,6 +28,7 @@ public class ProductDto {
         category.setName(this.getCategory());
         product.setCategory(category);
         product.setImageUrl(this.getImage());
+        product.setStockQuantity(this.getStockQuantity());
         return product;
     }
 
@@ -38,6 +40,7 @@ public class ProductDto {
         productDto.setDescription(product.getDescription());
         productDto.setImage(product.getImageUrl());
         productDto.setCategory(product.getCategory().getName());
+        productDto.setStockQuantity(product.getStockQuantity());
         return productDto;
     }
 }

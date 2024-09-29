@@ -1,5 +1,7 @@
 package org.example.productservice.controllers;
 
+import org.example.productservice.dtos.CategoryRequestDto;
+import org.example.productservice.dtos.ProductResponseDto;
 import org.junit.jupiter.api.Test;
 
 import org.example.productservice.dtos.CategoryDto;
@@ -81,7 +83,7 @@ class CategoryControllerTest {
         when(categoryService.getProductsInCategory(categoryName)).thenReturn(products);
 
         // Act
-        ResponseEntity<List<Product>> response = categoryController.getProductsByCategory(categoryName);
+        ResponseEntity<List<ProductResponseDto>> response = categoryController.getProductsByCategory(categoryName);
 
         // Assert
         assertNotNull(response);
@@ -113,16 +115,16 @@ class CategoryControllerTest {
         Category category = new Category();
         category.setName("Electronics");
 
-        when(categoryService.addCategory(category)).thenReturn(category);
+        when(categoryService.createCategory(CategoryRequestDto.fromCategory(category))).thenReturn(category);
 
         // Act
-        ResponseEntity<CategoryDto> response = categoryController.addCategory(category);
+        ResponseEntity<CategoryDto> response = categoryController.addCategory(CategoryRequestDto.fromCategory(category));
 
         // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertEquals("Electronics", response.getBody().getName());
-        verify(categoryService, times(1)).addCategory(category);
+        verify(categoryService, times(1)).createCategory(CategoryRequestDto.fromCategory(category));
     }
 
 
@@ -132,15 +134,15 @@ class CategoryControllerTest {
         Category category = new Category();
         category.setName("Electronics");
 
-        when(categoryService.addCategory(category)).thenThrow(new RuntimeException("Unexpected error"));
+        when(categoryService.createCategory(CategoryRequestDto.fromCategory(category))).thenThrow(new RuntimeException("Unexpected error"));
 
         // Act & Assert
         RuntimeException thrownException = assertThrows(RuntimeException.class, () -> {
-            categoryController.addCategory(category);
+            categoryController.addCategory(CategoryRequestDto.fromCategory(category));
         });
 
         assertEquals("Unexpected error", thrownException.getMessage());
-        verify(categoryService, times(1)).addCategory(category);
+        verify(categoryService, times(1)).createCategory(CategoryRequestDto.fromCategory(category));
 
     }
 }

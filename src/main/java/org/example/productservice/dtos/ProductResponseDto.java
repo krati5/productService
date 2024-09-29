@@ -6,16 +6,19 @@ import lombok.ToString;
 import org.example.productservice.models.Category;
 import org.example.productservice.models.Product;
 
+import java.io.Serializable;
+
 @Getter
 @Setter
 @ToString
-public class ProductResponseDto {
+public class ProductResponseDto implements Serializable {
     private Long id;
     private String title;
     private Double price;
     private String description;
     private String image;
     private String category;
+    private Integer stockQuantity;
 
     public Product toProduct(){
         Product product = new Product();
@@ -26,6 +29,7 @@ public class ProductResponseDto {
         category.setName(this.getCategory());
         product.setCategory(category);
         product.setImageUrl(this.getImage());
+        product.setStockQuantity(this.getStockQuantity());
         return product;
     }
 
@@ -37,6 +41,7 @@ public class ProductResponseDto {
         productDto.setDescription(product.getDescription());
         productDto.setImage(product.getImageUrl());
         productDto.setCategory(product.getCategory().getName());
+        productDto.setStockQuantity(product.getStockQuantity());
         return productDto;
     }
 }

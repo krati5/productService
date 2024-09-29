@@ -1,4 +1,4 @@
-package org.example.productservice.repositories;
+package org.example.productservice.repositories.JpaRepositories;
 
 import org.example.productservice.models.Category;
 import org.example.productservice.models.Product;

@@ -1,19 +1,36 @@
 package org.example.productservice.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.hibernate5.Hibernate5Module;
+import lombok.AllArgsConstructor;
+import org.antlr.v4.runtime.misc.NotNull;
+import org.example.productservice.clients.fakestoreapi.FakeStoreProductDto;
+import org.example.productservice.dtos.ProductDto;
+import org.example.productservice.dtos.ProductResponseDto;
 import org.example.productservice.exceptions.NotFoundException;
 import org.example.productservice.models.Category;
 import org.example.productservice.models.Product;
-import org.example.productservice.repositories.CategoryRepository;
-import org.example.productservice.repositories.ProductRepository;
+import org.example.productservice.models.SortParam;
+import org.example.productservice.models.SortType;
+import org.example.productservice.repositories.ElasticsearchRepositories.ProductESRepository;
+import org.example.productservice.repositories.JpaRepositories.CategoryRepository;
+import org.example.productservice.repositories.JpaRepositories.ProductRepository;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+@AllArgsConstructor
 @Service
 @Primary
 public class SelfProductService implements IProductService{
@@ -21,10 +38,8 @@ public class SelfProductService implements IProductService{
     private ProductRepository productRepository ;
     private CategoryRepository categoryRepository ;
 
-    public SelfProductService(ProductRepository productRepository, CategoryRepository categoryRepository ){
-        this.productRepository = productRepository;
-        this.categoryRepository = categoryRepository;
-    }
+    private final ProductESRepository productESRepository;
+    private RedisTemplate<String, Object> redisTemplate;
 
     private Category getOrSetCategory(Category category){
         // Ensure the category is saved or retrieved from the repository
@@ -37,6 +52,34 @@ public class SelfProductService implements IProductService{
         return null;
     }
 
+
+    @Override
+    public Page<Product> getProducts(int numOfResults, int offset, List<SortParam> sortParams){
+        Sort sort ;
+        if(sortParams.getFirst().getSortType().equals(SortType.ASC)){
+            sort = Sort.by(sortParams.getFirst().getParamName()).ascending();
+        }
+        else{
+            sort = Sort.by(sortParams.getFirst().getParamName()).descending();
+        }
+
+        for(int i=1; i<sortParams.size(); i++){
+            if(sortParams.get(i).getSortType().equals(SortType.ASC)){
+                sort.and(Sort.by(sortParams.get(i).getParamName()).ascending());
+            }
+            else{
+                sort = sort.and(Sort.by(sortParams.get(i).getParamName()).descending());
+
+            }
+        }
+
+
+        return productRepository.findAll(
+                // page number starts from 0
+                PageRequest.of((offset/numOfResults), numOfResults, sort)
+        );
+    }
+
     @Override
     public List<Product> getAllProducts() {
         return productRepository.findAll();
@@ -44,14 +87,29 @@ public class SelfProductService implements IProductService{
 
     @Override
     public Optional<Product> getSingleProduct(Long productId) {
-        return productRepository.findById(productId);
+        ProductResponseDto responseDto = (ProductResponseDto)redisTemplate.opsForHash().get("PRODUCTS", productId);
+        if(responseDto!=null){
+            return Optional.of(responseDto.toProduct());
+        }
+        // Query the repository fetch the product
+        Optional<Product> productOptional = productRepository.findById(productId);
+
+        if(productOptional.isPresent()){
+            redisTemplate.opsForHash().put("PRODUCTS", productId, ProductResponseDto.fromProduct(productOptional.get()));
+        }
+
+        return productOptional;
+
     }
 
     @Override
     public Product addProduct(Product product) {
         product.setCategory(getOrSetCategory(product.getCategory()));
-
-        return productRepository.save(product);
+        // first save data in SQL DB and then in elastic search
+        Product newProduct = productRepository.save(product);
+//        productESRepository.save(product);
+        ESUtils.mapForES(Product.class, newProduct).map(res -> productESRepository.save(res));
+        return newProduct;
     }
 
 
@@ -85,7 +143,11 @@ public class SelfProductService implements IProductService{
         if (product.getCategory() != null) {
             existingProduct.setCategory(product.getCategory());
         }
+        if(product.getStockQuantity() != null){
+            existingProduct.setStockQuantity(product.getStockQuantity());
+        }
         // Save updated product
+        productESRepository.save(existingProduct); // Update in Elasticsearch
         return productRepository.save(existingProduct);
 
     }
@@ -107,8 +169,10 @@ public class SelfProductService implements IProductService{
         existingProduct.setDescription(product.getDescription());
         existingProduct.setPrice(product.getPrice());
         existingProduct.setCategory(product.getCategory());
+        existingProduct.setStockQuantity(product.getStockQuantity());
 
         // Save updated product
+//        productESRepository.save(existingProduct); // Save to Elasticsearch
         return productRepository.save(existingProduct);
 
     }
@@ -121,6 +185,14 @@ public class SelfProductService implements IProductService{
         }
 
         productRepository.deleteById(productId);
+        productESRepository.deleteById(productId); // Remove from Elasticsearch
         return existingProductOptional.get();
+    }
+
+
+    @Override
+    public List<Product> searchProducts(String keyword) {
+        return productESRepository.findAllByTitleContaining(keyword);
+
     }
 }

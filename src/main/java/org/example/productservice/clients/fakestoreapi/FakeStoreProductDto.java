@@ -6,10 +6,12 @@ import lombok.ToString;
 import org.example.productservice.models.Category;
 import org.example.productservice.models.Product;
 
+import java.io.Serializable;
+
 @Getter
 @Setter
 @ToString
-public class FakeStoreProductDto {
+public class FakeStoreProductDto implements Serializable {
     private Long id;
     private String title;
     private Double price;

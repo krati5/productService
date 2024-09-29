@@ -1,4 +1,6 @@
 package org.example.productservice.services;
+import org.example.productservice.exceptions.NotFoundException;
+import org.example.productservice.models.SortParam;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.micrometer.common.lang.Nullable;
@@ -7,6 +9,8 @@ import org.example.productservice.clients.fakestoreapi.FakeStoreClient;
 import org.example.productservice.clients.fakestoreapi.FakeStoreProductDto;
 import org.example.productservice.models.Product;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -22,14 +26,17 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service(value = "fakeStoreProductService")
-public class FakeStoreProductService implements IProductService{
+public class FakeStoreProductService{
     private static final Logger logger = LoggerFactory.getLogger(FakeStoreProductService.class);
     private RestTemplateBuilder restTemplateBuilder;
     private FakeStoreClient fakeStoreClient;
 
-    public FakeStoreProductService(RestTemplateBuilder restTemplateBuilder, FakeStoreClient fakeStoreClient) {
+    private RedisTemplate<String, Object>  redisTemplate;
+
+    public FakeStoreProductService(RestTemplateBuilder restTemplateBuilder, FakeStoreClient fakeStoreClient, RedisTemplate<String, Object> redisTemplate) {
         this.restTemplateBuilder = restTemplateBuilder;
         this.fakeStoreClient = fakeStoreClient;
+        this.redisTemplate = redisTemplate;
     }
 
 
@@ -44,7 +51,8 @@ public class FakeStoreProductService implements IProductService{
         ResponseExtractor<ResponseEntity<T>> responseExtractor = restTemplate.responseEntityExtractor(responseType);
         return restTemplate.execute(url, httpMethod, requestCallback, responseExtractor, uriVariables);
     }
-    @Override
+
+
     public List<Product> getAllProducts() {
 
         try {
@@ -62,12 +70,24 @@ public class FakeStoreProductService implements IProductService{
 
     }
 
-    @Override
     public Optional<Product> getSingleProduct(Long productId) {
 
         try {
+            // Return data from cache if available
+            FakeStoreProductDto fakeStoreProductDtoCache = (FakeStoreProductDto)redisTemplate.opsForHash().get("PRODUCTS", productId);
+
+            if(fakeStoreProductDtoCache!=null){
+                return Optional.of(fakeStoreProductDtoCache.toProduct());
+            }
+            // Query the fakestore client to fetch the product
             Optional<FakeStoreProductDto> fakeStoreProductDto = fakeStoreClient.getSingleProduct(productId);
+
+            if(fakeStoreProductDto.isPresent()){
+                redisTemplate.opsForHash().put("PRODUCTS", productId, fakeStoreProductDto.get());
+            }
+
             return fakeStoreProductDto.map(FakeStoreProductDto::toProduct);
+
         } catch (Exception e) {
             logger.error("Error fetching product with id {}: {}", productId, e.getMessage(), e);
             return Optional.empty();
@@ -75,7 +95,7 @@ public class FakeStoreProductService implements IProductService{
 
     }
 
-    @Override
+
     public Product addProduct(Product product) {
 
         try {
@@ -89,7 +109,7 @@ public class FakeStoreProductService implements IProductService{
 
     }
 
-    @Override
+
     public Product updateProduct(Long productId, Product product) {
 
         try {
@@ -102,7 +122,7 @@ public class FakeStoreProductService implements IProductService{
         }
     }
 
-    @Override
+
     public Product replaceProduct(Long productId, Product product) {
 
         try {
@@ -116,7 +136,7 @@ public class FakeStoreProductService implements IProductService{
 
     }
 
-    @Override
+
     public Product deleteProduct(Long productId) {
 
         try {
